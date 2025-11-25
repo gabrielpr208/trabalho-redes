@@ -1,6 +1,4 @@
-from config import MY_PEER_ID
 import json
-import asyncio
 from typing import Any, Dict
 
 class ProtocolEncoder:
@@ -12,7 +10,7 @@ class ProtocolEncoder:
             **kwargs
         }
 
-        return json.dumps(message + '\n').encode('utf-8')
+        return (json.dumps(message) + '\n').encode('utf-8')
 
     def decode(data: bytes) -> Dict[str, Any]:
         try:

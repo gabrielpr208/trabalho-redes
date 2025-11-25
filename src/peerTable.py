@@ -1,5 +1,4 @@
 import asyncio
-import json
 from typing import Dict, Any, List
 
 from config import MY_PEER_ID
@@ -22,6 +21,7 @@ class PeerTable:
                         'port': peer['port'],
                         'status': 'stale'
                     }
+                    print(f"[PeerTable] Novo peer conhecido: {peer_id} em {peer['ip']}:{peer['port']}")
     
     async def get_stale_peers(self):
         async with self._lock:
@@ -37,6 +37,7 @@ class PeerTable:
             if peer_id in self.known_peers:
                 self.known_peers[peer_id]['status'] = 'active'
             self.active_writers[peer_id] = writer
+            print(f"[PeerTable] {peer_id} marcado como ATIVO.")
     
     async def remove_peer(self, peer_id):
         async with self._lock:
@@ -45,6 +46,8 @@ class PeerTable:
 
             if peer_id in self.known_peers:
                 self.known_peers[peer_id]['status'] = 'stale'
+
+            print(f"[PeerTable] {peer_id} removido da lista ativa e marcado como STALE.")
 
     async def get_writer(self, peer_id):
         async with self._lock:
