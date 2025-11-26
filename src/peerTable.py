@@ -70,15 +70,15 @@ class PeerTable:
                     self.rtt[peer_id].pop(0)
                 self.rtt[peer_id].append(rtt)
 
-    async def create_ack(self, message: str):
+    async def create_ack(self, msg_id: str):
         async with self._lock:
             future = asyncio.get_running_loop().create_future()
-            self.pending_acks[message] = future
+            self.pending_acks[msg_id] = future
             return future
         
-    async def complete_ack(self, message: str):
+    async def complete_ack(self, msg_id: str):
         async with self._lock:
-            if message in self.pending_acks:
-                future = self.pending_acks.pop(message)
+            if msg_id in self.pending_acks:
+                future = self.pending_acks.pop(msg_id)
                 if not future.done():
                     future.set_result(True)
