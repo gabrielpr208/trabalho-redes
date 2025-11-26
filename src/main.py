@@ -10,6 +10,6 @@ try:
     print("------------------------")
     asyncio.run(P2PClient().start())
 except KeyboardInterrupt:
-    print("\n Encerrado")
+    print("Encerrado")
 except Exception as e:
     print(f"Erro: {e}")
