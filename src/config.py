@@ -1,7 +1,9 @@
 RDV_IP = "45.171.101.167" 
 RDV_PORT = 8080
 
-MY_PEER_ID = "gabriel@unb"
+MY_NAME = "gabriel"
+MY_NAMESPACE = "unb"
+MY_PEER_ID = "{MY_NAME}@{MY_NAMESPACE}"
 
 MY_LISTEN_PORT = 50002
 MY_LISTEN_IP = "127.0.0.1"

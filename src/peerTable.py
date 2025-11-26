@@ -56,3 +56,29 @@ class PeerTable:
     async def get_active_peers_ids(self) -> List[str]:
         async with self._lock:
             return list(self.active_writers.keys())
+        
+    async def mean_rtt(self, peer_id: str):
+        async with self._lock:
+            if peer_id in self.rtt and self.rtt[peer_id]:
+                return sum(self.rtt[peer_id]) / len(self.rtt[peer_id])
+            return 0.0
+        
+    async def set_rtt(self, peer_id: str, rtt: float):
+        async with self._lock:
+            if peer_id in self.rtt:
+                if len(self.rtt[peer_id]) >= 5:
+                    self.rtt[peer_id].pop(0)
+                self.rtt[peer_id].append(rtt)
+
+    async def create_ack(self, message: str):
+        async with self._lock:
+            future = asyncio.get_running_loop().create_future()
+            self.pending_acks[message] = future
+            return future
+        
+    async def complete_ack(self, message: str):
+        async with self._lock:
+            if message in self.pending_acks:
+                future = self.pending_acks.pop(message)
+                if not future.done():
+                    future.set_result(True)
