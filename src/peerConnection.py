@@ -1,13 +1,10 @@
 import asyncio
-import json
 import uuid
-import sys
-import random
 import time
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any
 from p2pClient import P2PClient
 from protocolEncoder import ProtocolEncoder
-from config import MY_LISTEN_IP, MY_PEER_ID, MY_LISTEN_PORT, PING_INTERVAL
+from config import MY_PEER_ID, PING_INTERVAL
 
 class PeerConnection:
     def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, peer_id: str, chat_client: P2PClient):
@@ -129,4 +126,3 @@ class PeerConnection:
             self.reading_task.cancel()
         if self.keep_alive_task:
             self.keep_alive_task.cancel()
-            
