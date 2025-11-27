@@ -14,7 +14,7 @@ class Rendezvous:
     async def send_command(self, command: str, **kwargs: any):
         try:
             reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(RDV_IP, RDV_PORT)
+                asyncio.open_connection(RDV_IP, RDV_PORT),
                 timeout=5
             )
             message = ProtocolEncoder.encode(
