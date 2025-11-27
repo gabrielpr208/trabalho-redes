@@ -39,9 +39,9 @@ class P2PClient:
         if peer_address:
             print(f"[PeerServer] Conexão de entrada de {peer_address}")
             try:
-                await self.handle_inbound_handshake(reader, writer, peer_address)
+                await self.handle_handshake(reader, writer, peer_address)
             except Exception as e:
-                print(f"[-] Handshake Inbound falhou com {peer_address}: {e}")
+                print(f"[-] Handshake falhou com {peer_address}: {e}")
                 writer.close()
                 await writer.wait_closed()
                 return
@@ -52,7 +52,7 @@ class P2PClient:
         await writer.wait_closed()
         self.peer_table.remove_peer(peer_address)
 
-    async def handle_inbound_handshake(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, peer_address: Tuple[str, int]):
+    async def handle_handshake(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, peer_address: Tuple[str, int]):
         data = await asyncio.wait_for(reader.readuntil(b'\n'), timeout=5)
         message = ProtocolEncoder.decode(data)
 
