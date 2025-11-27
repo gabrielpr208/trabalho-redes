@@ -55,7 +55,7 @@ class PeerTable:
         async with self._lock:
             return self.active_writers.get(peer_id)
         
-    async def get_active_peers_ids(self) -> List[str]:
+    async def get_active_peers(self) -> List[str]:
         async with self._lock:
             return list(self.active_writers.keys())
         

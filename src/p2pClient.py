@@ -1,5 +1,6 @@
 import asyncio
 import sys
+import uuid
 from typing import Tuple
 from peerTable import PeerTable
 from config import MY_LISTEN_IP, MY_LISTEN_PORT, MY_PEER_ID
@@ -111,3 +112,58 @@ class P2PClient:
         await self.connect_to_peer(MY_LISTEN_IP, 50001)
         while self.running:
             await asyncio.sleep(1)
+
+    async def send_message(self, dst_peer_id: str, message: str):
+        writer = await self.peer_table.get_writer(dst_peer_id)
+        if not writer:
+            print(f"Peer {dst_peer_id} não encontrado. Use /peers para atualizar")
+            return
+        msg_id = str(uuid.uuid4())
+
+        msg = ProtocolEncoder.encode(
+            "SEND",
+            MY_PEER_ID,
+            msg_id=msg_id,
+            dst=dst_peer_id,
+            payload=message,
+            require_ack=True
+        )
+
+        ack = await self.peer_table.create_ack(msg_id)
+
+        try:
+            writer.write(msg)
+            await writer.drain()
+            print(f"[Router] Enviando mensagem para {dst_peer_id}. Aguardando ACK...")
+        except asyncio.TimeoutError:
+            print(f"[-] Timeout: ACK não recebido")
+        except Exception as e:
+            print(f"Erro no envio de mensagem para {dst_peer_id}: {e}")
+            await self.peer_table.remove_peer(dst_peer_id)
+
+    async def pub_message(self, dst: str, message: str):
+        active_peers = await self.peer_table.get_active_peers()
+
+        if not active_peers:
+            print(f"[Router] Não há peers ativos no momento.")
+            return
+        
+        msg = ProtocolEncoder.encode(
+            "PUB",
+            MY_PEER_ID,
+            msg_id=str(uuid.uuid4()),
+            dst=dst
+            payload=message,
+            require_ack=False
+        )
+
+        for peer_id in active_peers:
+            writer = await self.peer_table.get_writer(peer_id)
+            if writer:
+                try:
+                    writer.write(msg)
+                    await writer.drain()
+                except:
+                    await self.peer_table.remove_peer(peer_id)
+        
+        print(f"[Router] PUB enviado para {dst}")
