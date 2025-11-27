@@ -69,29 +69,6 @@ class P2PClient:
 
         await self.peer_table.add_active_peer(peer_id, writer)
 
-    async def read_loop(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-        peer_address = writer.get_extra_info('peername')
-
-        while True:
-            try:
-                data = await reader.readuntil(b'\n')
-                if not data:
-                    break
-
-                message = ProtocolEncoder.decode(data)
-                print(f"[Recebido] Comando {message.get('type')} de {message.get('peer_id')} | Payload: {message.get('payload', '...')[:20]}...")
-            except asyncio.IncompleteReadError:
-                break
-            except asyncio.TimeoutError:
-                continue
-            except Exception as e:
-                print(f"[-] Erro de leitura no loop com {peer_address}: {e}")
-                break
-        
-        peer_id = next((pid for pid, w in self.peer_table.active_writers.items() if w == writer), None)
-        if peer_id:
-            await self.peer_table.remove_peer(peer_id)
-
     async def connect_to_peer(self, ip: str, port: int):
         try:
             reader, writer = await asyncio.wait_for(

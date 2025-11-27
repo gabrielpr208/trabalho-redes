@@ -8,6 +8,8 @@ class PeerTable:
         self._lock = asyncio.Lock()
         self.known_peers: Dict[str, Dict[str, Any]] = {}
         self.active_writers: Dict[str, asyncio.StreamWriter] = {}
+        self.rtt: Dict[str, List[float]] = {}
+        self.pending_acks: Dict[str, asyncio.Future] = {}
     
     async def update_known_peers(self, peers_list: List[Dict[str, Any]]):
         async with self._lock:
