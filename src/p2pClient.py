@@ -1,16 +1,33 @@
 import asyncio
 import sys
 import uuid
-from typing import Tuple
+from typing import Tuple, Dict
+from peerConnection import PeerConnection
 from peerTable import PeerTable
 from config import MY_LISTEN_IP, MY_LISTEN_PORT, MY_PEER_ID
 from protocolEncoder import ProtocolEncoder
+from rendezvous import Rendezvous
+from cli import Cli
 
 class P2PClient:
     def __init__(self):
         self.peer_table = PeerTable()
-        self.server: asyncio.Server | None = None
+        self.rdv_client = Rendezvous(self.peer_table, self)
+        self.cli = Cli()
+        self.server: asyncio.Server = None
         self.running = True
+        self.rdv_task: asyncio.Task = None
+        self.cli_task: asyncio.Task = None
+        self.connection_handlers: Dict[str, PeerConnection] = {} 
+
+    async def start(self):
+        self.running = True
+        self.server_task = asyncio.create_task(self.chat_client.start_listening_server())
+        self.rdv_task = asyncio.create_task(self.rdv_client.loop())
+        self.cli_task = asyncio.create_task(self.cli.run())
+
+        print("[Client] Iniciando Loop Rendezvous e CLI...")
+        await asyncio.gather(self.server_task, self.rdv_task, self.cli_task)
     
     async def start_listening_server(self):
         try:
@@ -98,20 +115,6 @@ class P2PClient:
         except Exception as e:
             print(f"[-] Falha ao conectar: {e}")
             return False
-    
-    async def start(self):
-        self.running = True
-        server_task = asyncio.create_task(self.start_listening_server())
-        await self.start_background_tasks()
-        await server_task
-
-    async def start_background_tasks(self):
-        print("[Client] Iniciando tarefas de background (Rendezvous e CLI")
-        await asyncio.sleep(2)
-        print("\n--- Teste de Conexão (Para rodar 2 clientes localmente) ---")
-        await self.connect_to_peer(MY_LISTEN_IP, 50001)
-        while self.running:
-            await asyncio.sleep(1)
 
     async def send_message(self, dst_peer_id: str, message: str):
         writer = await self.peer_table.get_writer(dst_peer_id)
@@ -152,7 +155,7 @@ class P2PClient:
             "PUB",
             MY_PEER_ID,
             msg_id=str(uuid.uuid4()),
-            dst=dst
+            dst=dst,
             payload=message,
             require_ack=False
         )
@@ -167,3 +170,55 @@ class P2PClient:
                     await self.peer_table.remove_peer(peer_id)
         
         print(f"[Router] PUB enviado para {dst}")
+
+    async def print_active_connecions(self):
+        active_peers = await self.peer_table.get_active_peers()
+        print("--- Conexões ativas ---")
+        if not active_peers:
+            print("Não há conexões ativas no momento")
+            return
+        
+        for pid, ip, port in active_peers:
+            print(f"{pid} ({ip}:{port}) | Status: ATIVO")
+        print("----------------------")
+
+    async def print_rtt(self):
+        active_peers = await self.peer_table.get_active_peers()
+        print(f"--- RTT Médio (ms) ---")
+        if not active_peers:
+            print("Não há conexões ativas no momento")
+            return
+        
+        for pid in active_peers:
+            rtt = await self.peer_table.mean_rtt(pid)
+            if rtt > 0:
+                print(f"{pid}: {rtt:.2f} ms")
+            else:
+                print(f"{pid}: Sem dados de RTT")
+        print("------------------------")
+    
+    async def quit(self):
+        print("[Client] Encerrando chat P2P. Enviando BYE para peers ativos...")
+        self.running = False
+        self.rdv_client.running = False
+
+        for peer_id, handler in list(self.connection_handlers.items()):
+            bye_msg = ProtocolEncoder.encode(
+                "BYE",
+                MY_PEER_ID,
+                msg_id=str(uuid.uuid4()),
+                src=MY_PEER_ID,
+                dst=peer_id,
+                reason="Encerrando sessão"
+            )
+            
+            handler.writer.write(bye_msg)
+            await handler.writer.drain()
+
+            tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+            for task in tasks:
+                task.cancel()
+
+            if self.server:
+                self.server.close()
+            print("[Client] Encerrando...")
