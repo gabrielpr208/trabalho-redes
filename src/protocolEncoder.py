@@ -2,6 +2,7 @@ import json
 from typing import Any, Dict
 
 class ProtocolEncoder:
+    @staticmethod
     def encode(command_type: str, sender_id: str, **kwargs: any):
         message = {
             "type": command_type,
@@ -11,7 +12,8 @@ class ProtocolEncoder:
         }
 
         return (json.dumps(message) + '\n').encode('utf-8')
-
+    
+    @staticmethod
     def decode(data: bytes) -> Dict[str, Any]:
         try:
             message = data.decode('utf-8').strip()
