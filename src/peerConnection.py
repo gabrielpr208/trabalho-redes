@@ -36,7 +36,7 @@ class PeerConnection:
         elif cmd == "PONG":
             sent_time = float(message.get("timestamp", 0))
             rtt_ms = (time.time() - sent_time) * 1000
-            await self.chat_client.peer_table.set_rtt(source_peer_id, rtt_ms)
+            await self.p2p_client.peer_table.set_rtt(source_peer_id, rtt_ms)
             print(f"[KeepAlive] PONG recebido de {source_peer_id}, RTT: {rtt_ms} ms")
 
         elif cmd == "SEND":
@@ -45,7 +45,6 @@ class PeerConnection:
             if message.get("require_ack", False):
                 ack = ProtocolEncoder.encode(
                     "ACK",
-                    MY_PEER_ID,
                     msg_id=message.get("msg_id"),
                     timestamp=time.time()
                 )
@@ -55,7 +54,7 @@ class PeerConnection:
         elif cmd == "ACK":
             msg_id = message.get('msg_id', '???')
             print(f"[Router] Mensagem {msg_id[:8]}... confirmada por {source_peer_id}")
-            await self.chat_client.peer_table.complete_ack(msg_id)
+            await self.p2p_client.peer_table.complete_ack(msg_id)
 
         elif cmd == "PUB":
             dst = message.get("dst")
@@ -125,3 +124,11 @@ class PeerConnection:
             self.reading_task.cancel()
         if self.keep_alive_task:
             self.keep_alive_task.cancel()
+        if self.p2p_client:
+            await self.p2p_client.peer_table.remove_peer(self.peer_id)
+        print(f"[PeerConnection] Fechando conexão com {self.peer_id}...")
+        try:
+            self.writer.close()
+            await self.writer.wait_closed()
+        except:
+            pass
