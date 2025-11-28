@@ -39,6 +39,8 @@ class PeerTable:
             if peer_id in self.known_peers:
                 self.known_peers[peer_id]['status'] = 'active'
             self.active_writers[peer_id] = writer
+            if peer_id not in self.rtt:
+                self.rtt[peer_id] = []
             print(f"[PeerTable] {peer_id} marcado como ATIVO.")
     
     async def remove_peer(self, peer_id):
@@ -48,6 +50,9 @@ class PeerTable:
 
             if peer_id in self.known_peers:
                 self.known_peers[peer_id]['status'] = 'stale'
+            
+            if peer_id in self.rtt:
+                del self.rtt[peer_id]
 
             print(f"[PeerTable] {peer_id} removido da lista ativa e marcado como STALE.")
 
@@ -67,10 +72,11 @@ class PeerTable:
         
     async def set_rtt(self, peer_id: str, rtt: float):
         async with self._lock:
-            if peer_id in self.rtt:
-                if len(self.rtt[peer_id]) >= 5:
-                    self.rtt[peer_id].pop(0)
-                self.rtt[peer_id].append(rtt)
+            if peer_id not in self.rtt:
+                self.rtt[peer_id] = []
+            if len(self.rtt[peer_id]) >= 5:
+                self.rtt[peer_id].pop(0)
+            self.rtt[peer_id].append(rtt)
 
     async def create_ack(self, msg_id: str):
         async with self._lock:
