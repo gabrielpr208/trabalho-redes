@@ -1,12 +1,10 @@
 import asyncio
 import json
-from peerTable import PeerTable
-from p2pClient import P2PClient
 from config import MY_PEER_ID, RDV_IP, RDV_PORT, MY_NAME, MY_NAMESPACE, MY_LISTEN_PORT, DISCOVERY_INTERVAL
 from protocolEncoder import ProtocolEncoder
 
 class Rendezvous:
-    def __init__(self, peer_table: PeerTable, p2p_client: P2PClient):
+    def __init__(self, peer_table, p2p_client):
         self.peer_table = peer_table
         self.p2p_client = p2p_client
         self.running = True
