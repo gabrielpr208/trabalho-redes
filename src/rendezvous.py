@@ -28,7 +28,7 @@ class Rendezvous:
             writer.write(message)
             await writer.drain()
 
-            response = await asyncio.wait_for(reader.readuntil('\n'), timeout=5).decode('utf-8').strip()
+            response = await asyncio.wait_for(reader.readuntil(b'\n'), timeout=5).decode('utf-8').strip()
             
             writer.close()
             await writer.wait_closed()
