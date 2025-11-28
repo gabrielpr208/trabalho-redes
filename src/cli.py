@@ -14,8 +14,6 @@ class Cli:
         self.loop = asyncio.get_running_loop()
         self.loop.add_reader(sys.stdin, self.handle_input)
 
-        print("->", end='', flush=True)
-
         try:
             while self.running:
                 await asyncio.sleep(1)
@@ -34,8 +32,6 @@ class Cli:
         command = data.strip()
         if command:
             asyncio.create_task(self.process_command(command))
-        if self.running:
-            print("->", end='', flush=True)
 
     def stop(self):
         self.running = False
@@ -84,7 +80,7 @@ class Cli:
 
         elif cmd == "/rtt":
             await self.p2p_client.print_rtt()
-            
+
         elif cmd == "/quit":
             self.stop()
         else:
