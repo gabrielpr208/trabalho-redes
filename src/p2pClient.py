@@ -13,7 +13,7 @@ class P2PClient:
     def __init__(self):
         self.peer_table = PeerTable()
         self.rdv_client = Rendezvous(self.peer_table, self)
-        self.cli = Cli()
+        self.cli = Cli(self, self.peer_table, self.rdv_client)
         self.server: asyncio.Server = None
         self.running = True
         self.rdv_task: asyncio.Task = None
@@ -22,11 +22,11 @@ class P2PClient:
 
     async def start(self):
         self.running = True
-        self.server_task = asyncio.create_task(self.chat_client.start_listening_server())
+        self.server_task = asyncio.create_task(self.start_listening_server())
         self.rdv_task = asyncio.create_task(self.rdv_client.loop())
         self.cli_task = asyncio.create_task(self.cli.run())
 
-        print("[Client] Iniciando Loop Rendezvous e CLI...")
+        print("[Client] Iniciando conexão com Rendezvous e CLI...")
         await asyncio.gather(self.server_task, self.rdv_task, self.cli_task)
     
     async def start_listening_server(self):
@@ -57,18 +57,16 @@ class P2PClient:
         if peer_address:
             print(f"[PeerServer] Conexão de entrada de {peer_address}")
             try:
-                await self.handle_handshake(reader, writer, peer_address)
+                src_peer_id = await self.handle_handshake(reader, writer, peer_address)
             except Exception as e:
                 print(f"[-] Handshake falhou com {peer_address}: {e}")
                 writer.close()
                 await writer.wait_closed()
                 return
-        
-        await self.read_loop(reader, writer)
-
-        writer.close()
-        await writer.wait_closed()
-        self.peer_table.remove_peer(peer_address)
+            
+        connection = PeerConnection(reader, writer, src_peer_id, self)
+        self.connection_handlers[src_peer_id] = connection
+        connection.start()
 
     async def handle_handshake(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, peer_address: Tuple[str, int]):
         data = await asyncio.wait_for(reader.readuntil(b'\n'), timeout=5)
@@ -86,6 +84,8 @@ class P2PClient:
         await writer.drain()
 
         await self.peer_table.add_active_peer(peer_id, writer)
+
+        return peer_id
 
     async def connect_to_peer(self, ip: str, port: int):
         try:
@@ -106,7 +106,9 @@ class P2PClient:
             
             peer_id = message.get('peer_id')
             await self.peer_table.add_active_peer(peer_id, writer)
-            asyncio.create_task(self.read_loop(reader, writer))
+            connection = PeerConnection(reader, writer, peer_id, self)
+            self.connection_handlers[peer_id] = connection
+            connection.start()
             print(f"[Router] Conectado e ativo com: {peer_id}")
             return True
         except asyncio.TimeoutError:
@@ -138,6 +140,8 @@ class P2PClient:
             writer.write(msg)
             await writer.drain()
             print(f"[Router] Enviando mensagem para {dst_peer_id}. Aguardando ACK...")
+            await asyncio.wait_for(ack, timeout=5)
+            print(f"Mensagem para {dst_peer_id} foi confirmada")
         except asyncio.TimeoutError:
             print(f"[-] Timeout: ACK não recebido")
         except Exception as e:
@@ -178,8 +182,11 @@ class P2PClient:
             print("Não há conexões ativas no momento")
             return
         
-        for pid, ip, port in active_peers:
-            print(f"{pid} ({ip}:{port}) | Status: ATIVO")
+        for peer_id in active_peers:
+            peer_info = self.peer_table.known_peers.get(peer_id, {})
+            ip = peer_info.get('ip', '???')
+            port = peer_info.get('port', '???')
+            print(f"{peer_id} ({ip}:{port}) | Status: ATIVO")
         print("----------------------")
 
     async def print_rtt(self):

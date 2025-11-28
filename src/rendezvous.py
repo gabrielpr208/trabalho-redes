@@ -44,8 +44,14 @@ class Rendezvous:
         if response and response.get("status") == "OK":
             print(f"[Rendezvous] Peer {MY_PEER_ID} registrado.")
 
-    async def discover(self):
-        response = await self.send_command("DISCOVER")
+    async def discover(self, namespace_input: str):
+        if namespace_input == '*':
+            response = await self.send_command("DISCOVER")
+        else:
+            response = await self.send_command(
+                "DISCOVER",
+                namespace=namespace_input
+                )
         if isinstance(response, list):
             await self.peer_table.update_known_peers(response)
         elif response and response.get("error"):

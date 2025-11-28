@@ -40,7 +40,7 @@ class Cli:
         cmd = command_parts[0].lower()
 
         if cmd == "/peers":
-            await self.rdv.discover()
+            await self.rdv.discover(command_parts[1])
             await self.p2p_client.print_active_connecions()
         elif cmd == "/conn":
             await self.p2p_client.print_active_connecions()
