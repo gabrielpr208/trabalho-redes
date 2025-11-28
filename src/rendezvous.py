@@ -9,18 +9,14 @@ class Rendezvous:
         self.p2p_client = p2p_client
         self.running = True
 
-    async def send_command(self, command: str, **kwargs: any):
+    async def send_command(self, command: str, **kwargs):
         try:
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection(RDV_IP, RDV_PORT),
                 timeout=5
             )
-            message = ProtocolEncoder.encode(
+            message = ProtocolEncoder.encode_rdv(
                 command,
-                MY_PEER_ID,
-                name=MY_NAME,
-                namespace=MY_NAMESPACE,
-                port=MY_LISTEN_PORT,
                 **kwargs
             )
             writer.write(message)
@@ -39,7 +35,12 @@ class Rendezvous:
             return None
     
     async def register(self):
-        response = await self.send_command("REGISTER")
+        response = await self.send_command(
+            "REGISTER",
+            namespace=MY_NAMESPACE,
+            name=MY_NAME,
+            port=MY_LISTEN_PORT
+        )
         if response and response.get("status") == "OK":
             print(f"[Rendezvous] Peer {MY_PEER_ID} registrado.")
 
@@ -59,11 +60,11 @@ class Rendezvous:
         
     async def loop(self):
         await asyncio.sleep(1)
+        await self.register()
         while self.running:
             try:
-                await self.register()
                 await self.discover()
                 await self.reconnection()
                 await asyncio.sleep(DISCOVERY_INTERVAL)
-            except Exception as e:
+            except:
                 await asyncio.sleep(DISCOVERY_INTERVAL)
