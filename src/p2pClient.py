@@ -13,7 +13,7 @@ class P2PClient:
     def __init__(self):
         self.peer_table = PeerTable()
         self.rdv_client = Rendezvous(self.peer_table, self)
-        self.cli = Cli(self, self.peer_table, self.rdv_client)
+        self.cli = Cli(self)
         self.server: asyncio.Server = None
         self.running = True
         self.rdv_task: asyncio.Task = None
