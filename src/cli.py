@@ -1,10 +1,7 @@
 import asyncio
 import sys
-from rendezvous import Rendezvous
-from peerTable import PeerTable
-from p2pClient import P2PClient
 class Cli:
-    def __init__(self, p2p_client: P2PClient, peer_table: PeerTable, rdv: Rendezvous):
+    def __init__(self, p2p_client, peer_table, rdv):
         self.p2p_client = p2p_client
         self.peer_table = peer_table
         self.rdv = rdv
