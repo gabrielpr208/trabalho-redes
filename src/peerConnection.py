@@ -2,16 +2,15 @@ import asyncio
 import uuid
 import time
 from typing import Dict, Any
-from p2pClient import P2PClient
 from protocolEncoder import ProtocolEncoder
 from config import MY_PEER_ID, PING_INTERVAL
 
 class PeerConnection:
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, peer_id: str, chat_client: P2PClient):
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, peer_id: str, p2p_client):
         self.reader = reader
         self.writer = writer
         self.peer_id = peer_id
-        self.chat_client = chat_client
+        self.p2p_client = p2p_client
         self.running = True
         self.reading_task = None
         self.keep_alive_task = None
