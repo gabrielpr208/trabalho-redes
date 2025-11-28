@@ -3,12 +3,11 @@ import sys
 from rendezvous import Rendezvous
 from peerTable import PeerTable
 from p2pClient import P2PClient
-
 class Cli:
-    def __init__(self):
-        self.peer_table = PeerTable()
-        self.chat_client = P2PClient()
-        self.rdv = Rendezvous(self.peer_table, self)
+    def __init__(self, p2p_client: P2PClient, peer_table: PeerTable, rdv: Rendezvous):
+        self.p2p_client = p2p_client
+        self.peer_table = peer_table
+        self.rdv = rdv
         self.server: asyncio.Server | None = None
         self.running = True
         self.rdv_task: asyncio.Task | None = None
@@ -45,23 +44,23 @@ class Cli:
 
         if cmd == "/peers":
             await self.rdv.discover()
-            await self.chat_client.print_active_connecions()
+            await self.p2p_client.print_active_connecions()
         elif cmd == "/conn":
-            await self.chat_client.print_active_connecions()
+            await self.p2p_client.print_active_connecions()
         elif cmd == "/msg":
             if len(command_parts) == 3:
-                await self.chat_client.send_message(command_parts[1], command_parts[2])
+                await self.p2p_client.send_message(command_parts[1], command_parts[2])
             else:
                 print("Formato incorreto. Digite: /msg <peer_id> <mensagem>")
         elif cmd == "/pub":
             if len(command_parts) == 3:
-                await self.chat_client.pub_message(command_parts[1], command_parts[2])
+                await self.p2p_client.pub_message(command_parts[1], command_parts[2])
             else:
                 print("Formato incorreto. Digite: /pub [* | #namespace] <mensagem>")
         elif cmd == "/rtt":
-            await self.chat_client.print_rtt()
+            await self.p2p_client.print_rtt()
         elif cmd == "/quit":
-            await self.chat_client.quit()
+            await self.p2p_client.quit()
         else:
             print(f"Comando {cmd} não é válido")
             self.print_cli_help()
