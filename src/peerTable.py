@@ -23,7 +23,7 @@ class PeerTable:
                         'port': peer['port'],
                         'status': 'stale'
                     }
-                    print(f"[PeerTable] Novo peer conhecido: {peer_id} em {peer['ip']}:{peer['port']}")
+                    #print(f"[PeerTable] Novo peer conhecido: {peer_id} em {peer['ip']}:{peer['port']}")
     
     async def get_stale_peers(self):
         async with self._lock:
@@ -34,10 +34,11 @@ class PeerTable:
             ]
             return stale_peers
         
-    async def add_active_peer(self, peer_id, writer):
+    async def add_active_peer(self, peer_id: str, writer: asyncio.StreamWriter):
         async with self._lock:
-            if peer_id in self.known_peers:
-                self.known_peers[peer_id]['status'] = 'active'
+            if peer_id not in self.known_peers:
+                ip, port = writer.get_extra_info('peername')
+                self.known_peers[peer_id] = {'ip': ip, 'port': port}
             self.active_writers[peer_id] = writer
             if peer_id not in self.rtt:
                 self.rtt[peer_id] = []
@@ -46,15 +47,16 @@ class PeerTable:
     async def remove_peer(self, peer_id):
         async with self._lock:
             if peer_id in self.active_writers:
+                writer = self.active_writers[peer_id]
+                try:
+                    writer.close()
+                except:
+                    pass
                 del self.active_writers[peer_id]
-
             if peer_id in self.known_peers:
                 self.known_peers[peer_id]['status'] = 'stale'
-            
-            if peer_id in self.rtt:
-                del self.rtt[peer_id]
 
-            print(f"[PeerTable] {peer_id} removido da lista ativa e marcado como STALE.")
+            print(f"[PeerTable] Conexão com {peer_id} encerrada.")
 
     async def get_writer(self, peer_id):
         async with self._lock:

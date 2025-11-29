@@ -58,7 +58,7 @@ class Rendezvous:
                 )
         if isinstance(response, dict) and "peers" in response:
             peers_list = response["peers"]
-            print(f"[Rendezvous] Recebida lista com {len(peers_list)} peers")
+            #print(f"[Rendezvous] Recebida lista com {len(peers_list)} peers")
             await self.peer_table.update_known_peers(peers_list)
         elif response and response.get("error") and isinstance(response, dict):
             print(f"[Rendezvous] Falha no discover: {response.get('error')}")
@@ -66,7 +66,7 @@ class Rendezvous:
     async def reconnection(self):
         stale_peers = await self.peer_table.get_stale_peers()
         if stale_peers:
-            print(f"[Router] Tentando reconexão com {len(stale_peers)} peers stale")
+            #print(f"[Router] Tentando reconexão com {len(stale_peers)} peers stale")
             for peer_id, ip, port in stale_peers:
                 asyncio.create_task(self.p2p_client.connect_to_peer(ip, port))
         

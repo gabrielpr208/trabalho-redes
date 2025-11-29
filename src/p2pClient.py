@@ -27,7 +27,12 @@ class P2PClient:
         self.cli_task = asyncio.create_task(self.cli.run())
 
         print("[Client] Iniciando conexão com Rendezvous e CLI...")
-        await asyncio.gather(self.server_task, self.rdv_task, self.cli_task)
+        try:
+            await asyncio.gather(self.server_task, self.rdv_task, self.cli_task, return_exceptions=True)
+        except asyncio.CancelledError:
+            print("[Client] Encerrado com sucesso.")
+        finally:
+            self.running = False
     
     async def start_listening_server(self):
         try:
@@ -40,7 +45,10 @@ class P2PClient:
 
             print(f"[PeerServer] Escutando conexões de Peers em {listening_address}")
 
-            await self.server.serve_forever()
+            try:
+                await self.server.serve_forever()
+            except asyncio.CancelledError:
+                pass
         except OSError as e:
             if 'Address already in use' in str(e):
                 print(f"[FATAL] A porta {MY_LISTEN_PORT} já está em uso. Tente outra porta.")
@@ -59,7 +67,7 @@ class P2PClient:
             try:
                 src_peer_id = await self.handle_handshake(reader, writer, peer_address)
             except Exception as e:
-                print(f"[-] Handshake falhou com {peer_address}: {e}")
+                #print(f"[-] Handshake falhou com {peer_address}: {e}")
                 writer.close()
                 await writer.wait_closed()
                 return
@@ -79,7 +87,12 @@ class P2PClient:
 
         print(f"[Handshake] Recebido HELLO de {peer_id} em {peer_address}")
 
-        hello_ok = ProtocolEncoder.encode("HELLO_OK", MY_PEER_ID, version="1.0", features=["ack"])
+        hello_ok = ProtocolEncoder.encode(
+            "HELLO_OK",
+            MY_PEER_ID,
+            version="1.0",
+            features=["ack", "metrics"]
+            )
         writer.write(hello_ok)
         await writer.drain()
 
@@ -94,7 +107,12 @@ class P2PClient:
                 timeout=5
             )
             print(f"[Router] Enviando HELLO para {ip}:{port}...")
-            hello = ProtocolEncoder.encode("HELLO", MY_PEER_ID, version="1.0", features=["ack"])
+            hello = ProtocolEncoder.encode(
+                "HELLO",
+                MY_PEER_ID,
+                version="1.0",
+                features=["ack", "metrics"]
+                )
             writer.write(hello)
             await writer.drain()
 
@@ -112,10 +130,10 @@ class P2PClient:
             print(f"[Router] Conectado e ativo com: {peer_id}")
             return True
         except asyncio.TimeoutError:
-            print(f"[-] Falha de conexão/handshake (Timeout) com {ip}:{port}")
+            #print(f"[-] Falha de conexão/handshake (Timeout) com {ip}:{port}")
             return False
         except Exception as e:
-            print(f"[-] Falha ao conectar: {e}")
+            #print(f"[-] Falha ao conectar: {e}")
             return False
 
     async def send_message(self, dst_peer_id: str, message: str):
@@ -218,14 +236,18 @@ class P2PClient:
                 dst=peer_id,
                 reason="Encerrando sessão"
             )
+            try:
+                handler.writer.write(bye_msg)
+            except:
+                pass
+            await handler.stop()
             
-            handler.writer.write(bye_msg)
-            await handler.writer.drain()
+            if self.server:
+                self.server.close()
 
             tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
             for task in tasks:
                 task.cancel()
 
-            if self.server:
-                self.server.close()
+            await asyncio.gather(*tasks, return_exceptions=True)
             print("[Client] Encerrando...")
