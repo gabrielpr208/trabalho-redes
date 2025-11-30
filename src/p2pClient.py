@@ -4,7 +4,7 @@ import uuid
 from typing import Tuple, Dict
 from peerConnection import PeerConnection
 from peerTable import PeerTable
-from config import MY_LISTEN_IP, MY_LISTEN_PORT, MY_PEER_ID
+from config import MY_LISTEN_IP, MY_LISTEN_PORT, MY_PEER_ID, MAX_RECONNECT_ATTEMPTS
 from protocolEncoder import ProtocolEncoder
 from rendezvous import Rendezvous
 from cli import Cli
@@ -89,7 +89,7 @@ class P2PClient:
 
         hello_ok = ProtocolEncoder.encode(
             "HELLO_OK",
-            MY_PEER_ID,
+            peer_id=MY_PEER_ID,
             version="1.0",
             features=["ack", "metrics"]
             )
@@ -101,40 +101,51 @@ class P2PClient:
         return peer_id
 
     async def connect_to_peer(self, ip: str, port: int):
-        try:
-            reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(ip, port),
-                timeout=5
-            )
-            print(f"[Router] Enviando HELLO para {ip}:{port}...")
-            hello = ProtocolEncoder.encode(
-                "HELLO",
-                MY_PEER_ID,
-                version="1.0",
-                features=["ack", "metrics"]
+        number_of_attempts = 0
+        while number_of_attempts < MAX_RECONNECT_ATTEMPTS:
+            try:
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(ip, port),
+                    timeout=5
                 )
-            writer.write(hello)
-            await writer.drain()
+                print(f"[Router] Enviando HELLO para {ip}:{port}...")
+                hello = ProtocolEncoder.encode(
+                    "HELLO",
+                    peer_id=MY_PEER_ID,
+                    version="1.0",
+                    features=["ack", "metrics"]
+                    )
+                writer.write(hello)
+                await writer.drain()
 
-            response = await asyncio.wait_for(reader.readuntil(b'\n'), timeout=5)
-            message = ProtocolEncoder.decode(response)
+                response = await asyncio.wait_for(reader.readuntil(b'\n'), timeout=5)
+                message = ProtocolEncoder.decode(response)
 
-            if message.get("type") != "HELLO_OK":
-                raise ValueError(f"Resposta HELLO_OK inválida ou ausente: {message.get('type')}")
-            
-            peer_id = message.get('peer_id')
-            await self.peer_table.add_active_peer(peer_id, writer)
-            connection = PeerConnection(reader, writer, peer_id, self)
-            self.connection_handlers[peer_id] = connection
-            connection.start()
-            print(f"[Router] Conectado e ativo com: {peer_id}")
-            return True
-        except asyncio.TimeoutError:
-            #print(f"[-] Falha de conexão/handshake (Timeout) com {ip}:{port}")
-            return False
-        except Exception as e:
-            #print(f"[-] Falha ao conectar: {e}")
-            return False
+                if message.get("type") != "HELLO_OK":
+                    raise ValueError(f"Resposta HELLO_OK inválida ou ausente: {message.get('type')}")
+                
+                peer_id = message.get('peer_id')
+                await self.peer_table.add_active_peer(peer_id, writer)
+                connection = PeerConnection(reader, writer, peer_id, self)
+                self.connection_handlers[peer_id] = connection
+                connection.start()
+                print(f"[Router] Conectado e ativo com: {peer_id}")
+                return True
+            except (asyncio.TimeoutError, ConnectionRefusedError, Exception) as e:
+                number_of_attempts += 1
+                if number_of_attempts >= MAX_RECONNECT_ATTEMPTS:
+                    #print(f"[-] Falha ao conectar a {ip}:{port} após {attempt} tentativas.")
+                    return False
+                wait_time = 2 ** (number_of_attempts - 1)
+                # print(f"[Router] Falha na conexão com {ip}:{port}. Tentando novamente em {wait_time}s...")
+                await asyncio.sleep(wait_time)
+        
+        return False
+
+
+
+
+        
 
     async def send_message(self, dst_peer_id: str, message: str):
         writer = await self.peer_table.get_writer(dst_peer_id)
@@ -145,8 +156,8 @@ class P2PClient:
 
         msg = ProtocolEncoder.encode(
             "SEND",
-            MY_PEER_ID,
             msg_id=msg_id,
+            src=MY_PEER_ID,
             dst=dst_peer_id,
             payload=message,
             require_ack=True
@@ -175,8 +186,8 @@ class P2PClient:
         
         msg = ProtocolEncoder.encode(
             "PUB",
-            MY_PEER_ID,
             msg_id=str(uuid.uuid4()),
+            src=MY_PEER_ID,
             dst=dst,
             payload=message,
             require_ack=False
@@ -230,7 +241,6 @@ class P2PClient:
         for peer_id, handler in list(self.connection_handlers.items()):
             bye_msg = ProtocolEncoder.encode(
                 "BYE",
-                MY_PEER_ID,
                 msg_id=str(uuid.uuid4()),
                 src=MY_PEER_ID,
                 dst=peer_id,
