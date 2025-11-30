@@ -3,13 +3,12 @@ from typing import Any, Dict
 
 class ProtocolEncoder:
     @staticmethod
-    def encode(command_type: str, sender_id: str, **kwargs):
+    def encode(command_type: str, **kwargs):
         message = {
             "type": command_type,
-            "peer_id": sender_id,
             "ttl": 1,
-            **kwargs
         }
+        message.update(kwargs)
 
         return (json.dumps(message) + '\n').encode('utf-8')
     
