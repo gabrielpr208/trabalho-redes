@@ -204,14 +204,14 @@ class P2PClient:
         )
 
         for peer_id in active_peers:
-            writer = await self.peer_table.get_writer(peer_id)
-            if writer:
-                try:
-                    writer.write(msg)
-                    await writer.drain()
-                except:
-                    await self.peer_table.remove_peer(peer_id)
-
+            if peer_id.split("@")[1] == dst.replace("#", "") or dst == "*":
+                writer = await self.peer_table.get_writer(peer_id)
+                if writer:
+                    try:
+                        writer.write(msg)
+                        await writer.drain()
+                    except:
+                        await self.peer_table.remove_peer(peer_id)
         log.debug(f"PUB enviado para {dst}")
 
     async def print_active_connecions(self):

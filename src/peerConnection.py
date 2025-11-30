@@ -64,8 +64,8 @@ class PeerConnection:
         elif cmd == "PUB":
             dst = message.get("dst")
             payload = message.get("payload", "")
-            print(f"Recebeu mensagem pub de {dst} {self.peer_id}: {payload}")
-            log.debug(f"Recebeu mensagem pub de {dst} {self.peer_id}: {payload}")
+            print(f"Recebeu mensagem pub para {dst} de {self.peer_id}: {payload}")
+            log.debug(f"Recebeu mensagem pub para {dst} de {self.peer_id}: {payload}")
 
         elif cmd == "BYE":
             log.debug(f"Peer {self.peer_id} solicitou encerramento da conexão")
