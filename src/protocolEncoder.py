@@ -13,6 +13,7 @@ class ProtocolEncoder:
 
         return (json.dumps(message) + '\n').encode('utf-8')
     
+    @staticmethod
     def encode_rdv(command_type: str, **kwargs):
         message = {
             "type": command_type,
