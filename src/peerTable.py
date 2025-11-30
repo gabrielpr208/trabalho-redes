@@ -23,7 +23,7 @@ class PeerTable:
                         'port': peer['port'],
                         'status': 'stale'
                     }
-                    #print(f"[PeerTable] Novo peer conhecido: {peer_id} em {peer['ip']}:{peer['port']}")
+                    print(f"[PeerTable] Novo peer conhecido: {peer_id} em {peer['ip']}:{peer['port']}")
     
     async def get_stale_peers(self):
         async with self._lock:

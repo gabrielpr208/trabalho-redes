@@ -67,7 +67,7 @@ class P2PClient:
             try:
                 src_peer_id = await self.handle_handshake(reader, writer, peer_address)
             except Exception as e:
-                #print(f"[-] Handshake falhou com {peer_address}: {e}")
+                print(f"[-] Handshake falhou com {peer_address}: {e}")
                 writer.close()
                 await writer.wait_closed()
                 return
@@ -134,18 +134,13 @@ class P2PClient:
             except (asyncio.TimeoutError, ConnectionRefusedError, Exception) as e:
                 number_of_attempts += 1
                 if number_of_attempts >= MAX_RECONNECT_ATTEMPTS:
-                    #print(f"[-] Falha ao conectar a {ip}:{port} após {attempt} tentativas.")
+                    print(f"[-] Falha ao conectar a {ip}:{port} após {number_of_attempts} tentativas.")
                     return False
                 wait_time = 2 ** (number_of_attempts - 1)
-                # print(f"[Router] Falha na conexão com {ip}:{port}. Tentando novamente em {wait_time}s...")
+                print(f"[Router] Falha na conexão com {ip}:{port}. Tentando novamente em {wait_time}s...")
                 await asyncio.sleep(wait_time)
         
         return False
-
-
-
-
-        
 
     async def send_message(self, dst_peer_id: str, message: str):
         writer = await self.peer_table.get_writer(dst_peer_id)
