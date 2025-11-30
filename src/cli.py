@@ -92,6 +92,7 @@ class Cli:
 
         elif cmd == "/reconnect":
             if len(command_parts) == 1:
+                self.p2p_client.peer_attempts = {}
                 await self.p2p_client.rdv_client.reconnection()
             else:
                 print("Formato incorreto. Digite: /reconnect")

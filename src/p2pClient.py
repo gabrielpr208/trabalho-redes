@@ -23,6 +23,7 @@ class P2PClient:
         self.rdv_task: asyncio.Task = None
         self.cli_task: asyncio.Task = None
         self.connection_handlers: Dict[str, PeerConnection] = {}
+        self.peer_attempts: Dict[str, int] = {}
 
     async def start(self):
         self.running = True
@@ -111,7 +112,8 @@ class P2PClient:
         return peer_id
 
     async def connect_to_peer(self, ip: str, port: int):
-        number_of_attempts = 0
+        peer_key = f"{ip}:port"
+        number_of_attempts = self.peer_attempts.get(peer_key, 0)
         while number_of_attempts < MAX_RECONNECT_ATTEMPTS:
             try:
                 reader, writer = await asyncio.wait_for(
@@ -141,9 +143,11 @@ class P2PClient:
                 self.connection_handlers[peer_id] = connection
                 connection.start()
                 log.debug(f"Conectado e ativo com: {peer_id}")
+                self.peer_attempts[peer_key] = 0
                 return True
             except (asyncio.TimeoutError, ConnectionRefusedError, Exception) as e:
                 number_of_attempts += 1
+                self.peer_attempts[peer_key] = number_of_attempts
                 if number_of_attempts >= MAX_RECONNECT_ATTEMPTS:
                     log.info(
                         f"Falha ao conectar a {ip}:{port} após {number_of_attempts} tentativas."
