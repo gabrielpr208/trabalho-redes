@@ -48,6 +48,20 @@ class Rendezvous:
         else:
             print(f"[Rendezvous] Erro ao registrar o peer {MY_PEER_ID}")
 
+    async def unregister(self):
+        response = await self.send_command(
+            "UNREGISTER",
+            namespace=MY_NAMESPACE,
+            name=MY_NAME
+        )
+
+        if response and response.get("status") == "OK":
+            print(f"[Rendezvous] Peer {MY_PEER_ID} removido do rendezvous.")
+            self.running = False
+        else:
+            print(f"[Rendezvous] Erro ao desregistrar o peer {MY_PEER_ID}")
+
+
     async def discover(self, namespace_input: str):
         if namespace_input == "*":
             response = await self.send_command("DISCOVER")
