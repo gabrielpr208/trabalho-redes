@@ -24,7 +24,6 @@ class PeerConnection:
         if cmd == "PING":
             pong = ProtocolEncoder.encode(
                 "PONG",
-                MY_PEER_ID,
                 msg_id=message.get("msg_id"),
                 timestamp=time.time()
             )
@@ -64,7 +63,6 @@ class PeerConnection:
             print(f"[Peer {self.peer_id}] Solicitou encerramento da conexão")
             bye_ok = ProtocolEncoder.encode(
                 "BYE_OK",
-                MY_PEER_ID,
                 msg_id=message.get("msg_id"),
                 src=MY_PEER_ID,
                 dst=self.peer_id
@@ -78,7 +76,6 @@ class PeerConnection:
         timestamp = time.time()
         ping = ProtocolEncoder.encode(
             "PING",
-            MY_PEER_ID,
             msg_id=msg_id,
             timestamp=timestamp
         )
