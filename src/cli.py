@@ -82,7 +82,7 @@ class Cli:
             await self.p2p_client.print_rtt()
 
         elif cmd == "/quit":
-            await self.rendezvous.unregister()
+            await self.p2p_client.rendezvous.unregister()
             self.stop()
         else:
             print(f"Comando {cmd} não é válido")
