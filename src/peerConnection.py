@@ -24,6 +24,7 @@ class PeerConnection:
         self.running = True
         self.reading_task = None
         self.keep_alive_task = None
+        self.pending_pings: Dict[str, asyncio.Future] = {}
 
     async def process_command(self, message: Dict[str, Any]):
         cmd = message.get("type")
@@ -43,7 +44,13 @@ class PeerConnection:
             sent_time = float(message.get("timestamp", 0))
             rtt_ms = (time.time() - sent_time) * 1000
             await self.p2p_client.peer_table.set_rtt(self.peer_id, rtt_ms)
+
             log.debug(f"PONG recebido de {self.peer_id}, RTT: {rtt_ms} ms")
+
+            msg_id = message.get("msg_id")
+            fut = self.pending_pings.get(msg_id)
+            if fut and not fut.done():
+                fut.set_result(True)
 
         elif cmd == "SEND":
             payload = message.get("payload", "")
@@ -78,14 +85,26 @@ class PeerConnection:
             await self.stop()
 
     async def send_ping(self):
+        log.debug(f"Enviando PING para peer {self.peer_id}")
         msg_id = str(uuid.uuid4())
+
+        fut = asyncio.get_running_loop().create_future()
+        self.pending_pings[msg_id] = fut
+
         timestamp = time.time()
         ping = ProtocolEncoder.encode("PING", msg_id=msg_id, timestamp=timestamp)
         try:
             self.writer.write(ping)
             await self.writer.drain()
+            await asyncio.wait_for(fut, timeout=5)
+
+        except asyncio.TimeoutError:
+            log.debug(f"Tempo esgotado esperando PONG de {self.peer_id}")
+            await self.stop()
         except:
             await self.stop()
+        finally:
+            self.pending_pings.pop(msg_id)
 
     async def keep_alive_loop(self):
         await asyncio.sleep(PING_INTERVAL)
