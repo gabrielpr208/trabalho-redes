@@ -1,5 +1,9 @@
 import json
 from typing import Any, Dict
+import logging
+
+log = logging.getLogger("encoder")
+
 
 class ProtocolEncoder:
     @staticmethod
@@ -10,25 +14,21 @@ class ProtocolEncoder:
         }
         message.update(kwargs)
 
-        return (json.dumps(message) + '\n').encode('utf-8')
-    
+        return (json.dumps(message) + "\n").encode("utf-8")
+
     @staticmethod
     def encode_rdv(command_type: str, **kwargs):
-        message = {
-            "type": command_type,
-            **kwargs
-        }
+        message = {"type": command_type, **kwargs}
 
-        return (json.dumps(message) + '\n').encode('utf-8')
-    
+        return (json.dumps(message) + "\n").encode("utf-8")
+
     @staticmethod
     def decode(data: bytes) -> Dict[str, Any]:
         try:
-            message = data.decode('utf-8').strip()
+            message = data.decode("utf-8").strip()
             if not message:
                 return {}
             return json.loads(message)
         except json.JSONDecodeError as e:
-            print(f"[!] Erro de decodificação JSON: {e} na string: {message}")
+            log.error(f"Erro de decodificação JSON: {e} na string: {message}")
             return {}
-

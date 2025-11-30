@@ -8,6 +8,10 @@ from config import MY_LISTEN_IP, MY_LISTEN_PORT, MY_PEER_ID, MAX_RECONNECT_ATTEM
 from protocolEncoder import ProtocolEncoder
 from rendezvous import Rendezvous
 from cli import Cli
+import logging
+
+log = logging.getLogger("p2p client")
+
 
 class P2PClient:
     def __init__(self):
@@ -18,7 +22,7 @@ class P2PClient:
         self.running = True
         self.rdv_task: asyncio.Task = None
         self.cli_task: asyncio.Task = None
-        self.connection_handlers: Dict[str, PeerConnection] = {} 
+        self.connection_handlers: Dict[str, PeerConnection] = {}
 
     async def start(self):
         self.running = True
@@ -26,73 +30,79 @@ class P2PClient:
         self.rdv_task = asyncio.create_task(self.rdv_client.loop())
         self.cli_task = asyncio.create_task(self.cli.run())
 
-        print("[Client] Iniciando conexão com Rendezvous e CLI...")
+        log.info("Iniciando conexão com Rendezvous e CLI.")
         try:
-            await asyncio.gather(self.server_task, self.rdv_task, self.cli_task, return_exceptions=True)
+            await asyncio.gather(
+                self.server_task, self.rdv_task, self.cli_task, return_exceptions=True
+            )
         except asyncio.CancelledError:
-            print("[Client] Encerrado com sucesso.")
+            log.debug("Encerrado com sucesso.")
         finally:
             self.running = False
-    
+
     async def start_listening_server(self):
         try:
             self.server = await asyncio.start_server(
-                self.handle_connection,
-                MY_LISTEN_IP,
-                MY_LISTEN_PORT
+                self.handle_connection, MY_LISTEN_IP, MY_LISTEN_PORT
             )
             listening_address = self.server.sockets[0].getsockname()
 
-            print(f"[PeerServer] Escutando conexões de Peers em {listening_address}")
+            log.info(f"Escutando conexões de Peers em {listening_address}")
 
             try:
                 await self.server.serve_forever()
             except asyncio.CancelledError:
                 pass
         except OSError as e:
-            if 'Address already in use' in str(e):
-                print(f"[FATAL] A porta {MY_LISTEN_PORT} já está em uso. Tente outra porta.")
+            if "Address already in use" in str(e):
+                log.critical(
+                    f"A porta {MY_LISTEN_PORT} já está em uso. Tente outra porta."
+                )
             else:
-                print(f"[FATAL] Falha ao iniciar servidor local: {e}")
+                log.critical(f"Falha ao iniciar servidor local: {e}")
             self.running = False
             sys.exit(1)
         except Exception as e:
-             if self.running:
-                 print(f"[PeerServer] Erro no servidor de escuta: {e}")
+            if self.running:
+                log.error(f"Erro no servidor de escuta: {e}")
 
-    async def handle_connection(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-        peer_address = writer.get_extra_info('peername')
+    async def handle_connection(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ):
+        peer_address = writer.get_extra_info("peername")
         if peer_address:
-            print(f"[PeerServer] Conexão de entrada de {peer_address}")
+            log.debug(f"Conexão de entrada de {peer_address}")
             try:
                 src_peer_id = await self.handle_handshake(reader, writer, peer_address)
             except Exception as e:
-                print(f"[-] Handshake falhou com {peer_address}: {e}")
+                log.debug(f"Handshake falhou com {peer_address}: {e}")
                 writer.close()
                 await writer.wait_closed()
                 return
-            
+
         connection = PeerConnection(reader, writer, src_peer_id, self)
         self.connection_handlers[src_peer_id] = connection
         connection.start()
 
-    async def handle_handshake(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, peer_address: Tuple[str, int]):
-        data = await asyncio.wait_for(reader.readuntil(b'\n'), timeout=5)
+    async def handle_handshake(
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        peer_address: Tuple[str, int],
+    ):
+        data = await asyncio.wait_for(reader.readuntil(b"\n"), timeout=5)
         message = ProtocolEncoder.decode(data)
 
         if message.get("type") != "HELLO":
             raise ValueError(f"Comando inválido: {message.get('type')}")
-        
+
         peer_id = message.get("peer_id")
 
-        print(f"[Handshake] Recebido HELLO de {peer_id} em {peer_address}")
+        log.debug(f"Recebido HELLO de {peer_id} em {peer_address}")
 
         hello_ok = ProtocolEncoder.encode(
-            "HELLO_OK",
-            peer_id=MY_PEER_ID,
-            version="1.0",
-            features=["ack", "metrics"]
-            )
+            "HELLO_OK", peer_id=MY_PEER_ID, version="1.0", features=["ack", "metrics"]
+        )
         writer.write(hello_ok)
         await writer.drain()
 
@@ -105,41 +115,46 @@ class P2PClient:
         while number_of_attempts < MAX_RECONNECT_ATTEMPTS:
             try:
                 reader, writer = await asyncio.wait_for(
-                    asyncio.open_connection(ip, port),
-                    timeout=5
+                    asyncio.open_connection(ip, port), timeout=5
                 )
-                print(f"[Router] Enviando HELLO para {ip}:{port}...")
+                log.debug(f"Enviando HELLO para {ip}:{port}...")
                 hello = ProtocolEncoder.encode(
                     "HELLO",
                     peer_id=MY_PEER_ID,
                     version="1.0",
-                    features=["ack", "metrics"]
-                    )
+                    features=["ack", "metrics"],
+                )
                 writer.write(hello)
                 await writer.drain()
 
-                response = await asyncio.wait_for(reader.readuntil(b'\n'), timeout=5)
+                response = await asyncio.wait_for(reader.readuntil(b"\n"), timeout=5)
                 message = ProtocolEncoder.decode(response)
 
                 if message.get("type") != "HELLO_OK":
-                    raise ValueError(f"Resposta HELLO_OK inválida ou ausente: {message.get('type')}")
-                
-                peer_id = message.get('peer_id')
+                    raise ValueError(
+                        f"Resposta HELLO_OK inválida ou ausente: {message.get('type')}"
+                    )
+
+                peer_id = message.get("peer_id")
                 await self.peer_table.add_active_peer(peer_id, writer)
                 connection = PeerConnection(reader, writer, peer_id, self)
                 self.connection_handlers[peer_id] = connection
                 connection.start()
-                print(f"[Router] Conectado e ativo com: {peer_id}")
+                log.debug(f"Conectado e ativo com: {peer_id}")
                 return True
             except (asyncio.TimeoutError, ConnectionRefusedError, Exception) as e:
                 number_of_attempts += 1
                 if number_of_attempts >= MAX_RECONNECT_ATTEMPTS:
-                    print(f"[-] Falha ao conectar a {ip}:{port} após {number_of_attempts} tentativas.")
+                    log.info(
+                        f"Falha ao conectar a {ip}:{port} após {number_of_attempts} tentativas."
+                    )
                     return False
                 wait_time = 2 ** (number_of_attempts - 1)
-                print(f"[Router] Falha na conexão com {ip}:{port}. Tentando novamente em {wait_time}s...")
+                log.debug(
+                    f"Falha na conexão com {ip}:{port}. Tentando novamente em {wait_time}s..."
+                )
                 await asyncio.sleep(wait_time)
-        
+
         return False
 
     async def send_message(self, dst_peer_id: str, message: str):
@@ -155,7 +170,7 @@ class P2PClient:
             src=MY_PEER_ID,
             dst=dst_peer_id,
             payload=message,
-            require_ack=True
+            require_ack=True,
         )
 
         ack = await self.peer_table.create_ack(msg_id)
@@ -163,29 +178,29 @@ class P2PClient:
         try:
             writer.write(msg)
             await writer.drain()
-            print(f"[Router] Enviando mensagem para {dst_peer_id}. Aguardando ACK...")
+            log.debug(f"Enviando mensagem para {dst_peer_id}. Aguardando ACK...")
             await asyncio.wait_for(ack, timeout=5)
             print(f"Mensagem para {dst_peer_id} foi confirmada")
         except asyncio.TimeoutError:
-            print(f"[-] Timeout: ACK não recebido")
+            log.debug(f"Timeout: ACK não recebido")
         except Exception as e:
-            print(f"Erro no envio de mensagem para {dst_peer_id}: {e}")
+            log.error(f"Erro no envio de mensagem para {dst_peer_id}: {e}")
             await self.peer_table.remove_peer(dst_peer_id)
 
     async def pub_message(self, dst: str, message: str):
         active_peers = await self.peer_table.get_active_peers()
 
         if not active_peers:
-            print(f"[Router] Não há peers ativos no momento.")
+            log.debug(f"/pub Não há peers ativos no momento.")
             return
-        
+
         msg = ProtocolEncoder.encode(
             "PUB",
             msg_id=str(uuid.uuid4()),
             src=MY_PEER_ID,
             dst=dst,
             payload=message,
-            require_ack=False
+            require_ack=False,
         )
 
         for peer_id in active_peers:
@@ -196,20 +211,20 @@ class P2PClient:
                     await writer.drain()
                 except:
                     await self.peer_table.remove_peer(peer_id)
-        
-        print(f"[Router] PUB enviado para {dst}")
+
+        log.debug(f"PUB enviado para {dst}")
 
     async def print_active_connecions(self):
         active_peers = await self.peer_table.get_active_peers()
         print("--- Conexões ativas ---")
         if not active_peers:
-            print("Não há conexões ativas no momento")
+            log.debug("Não há conexões ativas no momento")
             return
-        
+
         for peer_id in active_peers:
             peer_info = self.peer_table.known_peers.get(peer_id, {})
-            ip = peer_info.get('ip', '???')
-            port = peer_info.get('port', '???')
+            ip = peer_info.get("ip", "???")
+            port = peer_info.get("port", "???")
             print(f"{peer_id} ({ip}:{port}) | Status: ATIVO")
         print("----------------------")
 
@@ -217,9 +232,9 @@ class P2PClient:
         active_peers = await self.peer_table.get_active_peers()
         print(f"--- RTT Médio (ms) ---")
         if not active_peers:
-            print("Não há conexões ativas no momento")
+            log.debug("Não há conexões ativas no momento")
             return
-        
+
         for pid in active_peers:
             rtt = await self.peer_table.mean_rtt(pid)
             if rtt > 0:
@@ -227,9 +242,9 @@ class P2PClient:
             else:
                 print(f"{pid}: Sem dados de RTT")
         print("------------------------")
-    
+
     async def quit(self):
-        print("[Client] Encerrando chat P2P. Enviando BYE para peers ativos...")
+        log.info("Encerrando chat P2P. Enviando BYE para peers ativos...")
         self.running = False
         self.rdv_client.running = False
 
@@ -239,14 +254,14 @@ class P2PClient:
                 msg_id=str(uuid.uuid4()),
                 src=MY_PEER_ID,
                 dst=peer_id,
-                reason="Encerrando sessão"
+                reason="Encerrando sessão",
             )
             try:
                 handler.writer.write(bye_msg)
             except:
                 pass
             await handler.stop()
-            
+
             if self.server:
                 self.server.close()
 
@@ -255,4 +270,3 @@ class P2PClient:
                 task.cancel()
 
             await asyncio.gather(*tasks, return_exceptions=True)
-            print("[Client] Encerrando...")
