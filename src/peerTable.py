@@ -27,18 +27,18 @@ class PeerTable:
     
     async def get_stale_peers(self):
         async with self._lock:
-            stale_peers= [
-                (pid, data['ip'], data['port'])
-                for pid, data in self.known_peers.items()
-                if data.get('status') == 'stale' and pid not in self.active_writers
-            ]
+            stale_peers = []
+            for peer in self.known_peers:
+                if peer['status'] == 'stale':
+                    stale_peers.append(peer)
+
             return stale_peers
         
     async def add_active_peer(self, peer_id: str, writer: asyncio.StreamWriter):
         async with self._lock:
             if peer_id not in self.known_peers:
                 ip, port = writer.get_extra_info('peername')
-                self.known_peers[peer_id] = {'ip': ip, 'port': port}
+                self.known_peers[peer_id] = {'ip': ip, 'port': port, 'status': 'active'}
             self.active_writers[peer_id] = writer
             if peer_id not in self.rtt:
                 self.rtt[peer_id] = []
