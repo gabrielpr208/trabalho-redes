@@ -59,7 +59,7 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-config.MY_LISTEN_PORT = args.port or random.randint(1, 65535)
+config.MY_LISTEN_PORT = args.port or 50000 + random.randint(0, 9999)
 config.MY_NAME = args.name or input("Digite seu name: ")
 config.MY_NAMESPACE = args.namespace or input("Digite seu namespace: ")
 config.MY_PEER_ID = f"{config.MY_NAME}@{config.MY_NAMESPACE}"
