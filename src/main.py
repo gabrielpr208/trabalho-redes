@@ -4,14 +4,8 @@ import logging
 import argparse
 from logger import setup_logging
 from prompt_toolkit.patch_stdout import patch_stdout
-
-config.MY_NAME = input("Digite seu name: ")
-config.MY_NAMESPACE = input("Digite seu namespace: ")
-config.MY_PEER_ID = f"{config.MY_NAME}@{config.MY_NAMESPACE}"
-config.MY_LISTEN_PORT = 50000 + random.randint(0, 9999)
-
 import asyncio
-from p2pClient import P2PClient
+
 
 parser = argparse.ArgumentParser(description="P2P Chat")
 
@@ -31,14 +25,51 @@ parser.add_argument(
     "--log-level",
     choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
     default="INFO",
-    help="Host/IP for the rendezvous server (default: 0.0.0.0).",
+    help="Logging level (default: INFO)",
+)
+
+
+def valid_port(value):
+    port = int(value)
+    if 1 <= port <= 65535:
+        return port
+    raise argparse.ArgumentTypeError(f"{value} is not a valid port number (1-65535) ")
+
+
+parser.add_argument(
+    "--port",
+    type=valid_port,
+    default=None,
+    help="Port to listen on (1-65535, default: random)",
+)
+
+parser.add_argument(
+    "--name",
+    type=str,
+    default=None,
+    help="Peer name",
+)
+
+parser.add_argument(
+    "--namespace",
+    type=str,
+    default=None,
+    help="Peer's namespace",
 )
 
 args = parser.parse_args()
 
-setup_logging(args.log_mode, args.log_file, args.log_level)
+config.MY_LISTEN_PORT = args.port or random.randint(1, 65535)
+config.MY_NAME = args.name or input("Digite seu name: ")
+config.MY_NAMESPACE = args.namespace or input("Digite seu namespace: ")
+config.MY_PEER_ID = f"{config.MY_NAME}@{config.MY_NAMESPACE}"
 
+
+setup_logging(args.log_mode, args.log_file, args.log_level)
 log = logging.getLogger("main")
+
+from p2pClient import P2PClient
+
 with patch_stdout():
     try:
         asyncio.run(P2PClient().start())
