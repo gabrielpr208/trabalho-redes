@@ -19,16 +19,20 @@ class Cli:
         while self.running:
             try:
                 command = await self.prompt_session.prompt_async("> ")
-            except asyncio.CancelledError:
+            except (EOFError, KeyboardInterrupt, asyncio.CancelledError):
+                self.running = False
                 break
 
             command = command.strip()
             if command:
-                asyncio.create_task(self.process_command(command))
+                await self.process_command(command)
 
-    def stop(self):
+    async def stop(self):
+        if not self.running:
+            return
         self.running = False
-        asyncio.create_task(self.p2p_client.quit())
+        await self.p2p_client.rdv_client.unregister()
+        await self.p2p_client.quit()
 
     def print_user_info(self):
         print(f"ID: {config.MY_PEER_ID}")
@@ -93,8 +97,8 @@ class Cli:
                 print("Formato incorreto. Digite: /reconnect")
 
         elif cmd == "/quit":
-            await self.p2p_client.rdv_client.unregister()
-            self.stop()
+            await self.stop()
+
         else:
             print(f"Comando {cmd} não é válido")
             self.print_cli_help()

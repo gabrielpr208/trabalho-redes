@@ -72,6 +72,7 @@ class PeerConnection:
             bye_ok = ProtocolEncoder.encode(
                 "BYE_OK", msg_id=message.get("msg_id"), src=MY_PEER_ID, dst=self.peer_id
             )
+            log.debug(f"BYE_OK sent to {self.peer_id}")
             self.writer.write(bye_ok)
             await self.writer.drain()
             await self.stop()

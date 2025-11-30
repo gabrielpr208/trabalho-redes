@@ -185,7 +185,7 @@ class P2PClient:
             log.debug(f"Timeout: ACK não recebido")
         except Exception as e:
             log.error(f"Erro no envio de mensagem para {dst_peer_id}: {e}")
-            await self.peer_table.remove_peer(dst_peer_id)
+            await self.peer_table.mark_stale_peer(dst_peer_id)
 
     async def pub_message(self, dst: str, message: str):
         active_peers = await self.peer_table.get_active_peers()
@@ -211,7 +211,7 @@ class P2PClient:
                         writer.write(msg)
                         await writer.drain()
                     except:
-                        await self.peer_table.remove_peer(peer_id)
+                        await self.peer_table.mark_stale_peer(peer_id)
         log.debug(f"PUB enviado para {dst}")
 
     async def print_active_connecions(self, namespace):
@@ -259,15 +259,11 @@ class P2PClient:
             )
             try:
                 handler.writer.write(bye_msg)
+                await handler.writer.drain()
             except:
                 pass
             await handler.stop()
 
             if self.server:
                 self.server.close()
-
-            tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-            for task in tasks:
-                task.cancel()
-
-            await asyncio.gather(*tasks, return_exceptions=True)
+                await self.server.wait_closed()

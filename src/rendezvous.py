@@ -94,4 +94,3 @@ class Rendezvous:
                 await asyncio.sleep(DISCOVERY_INTERVAL)
             except:
                 await asyncio.sleep(DISCOVERY_INTERVAL)
-

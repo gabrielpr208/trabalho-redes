@@ -56,6 +56,22 @@ class PeerTable:
                 writer = self.active_writers[peer_id]
                 try:
                     writer.close()
+                    await writer.wait_closed()
+                except:
+                    pass
+                del self.active_writers[peer_id]
+            if peer_id in self.known_peers:
+                self.known_peers.pop(peer_id)
+
+            log.debug(f"Peer {peer_id} removido.")
+
+    async def mark_stale_peer(self, peer_id):
+        async with self._lock:
+            if peer_id in self.active_writers:
+                writer = self.active_writers[peer_id]
+                try:
+                    writer.close()
+                    await writer.wait_closed()
                 except:
                     pass
                 del self.active_writers[peer_id]
