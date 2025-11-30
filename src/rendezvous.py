@@ -67,7 +67,7 @@ class Rendezvous:
         stale_peers = await self.peer_table.get_stale_peers()
         if stale_peers:
             #print(f"[Router] Tentando reconexão com {len(stale_peers)} peers stale")
-            for peer_id, ip, port in stale_peers:
+            for ip, port in stale_peers:
                 asyncio.create_task(self.p2p_client.connect_to_peer(ip, port))
         
     async def loop(self):
