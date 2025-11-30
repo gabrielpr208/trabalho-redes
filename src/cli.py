@@ -1,6 +1,6 @@
 import asyncio
 import config
-import sys
+import logging
 from prompt_toolkit import PromptSession
 
 
@@ -37,11 +37,15 @@ class Cli:
 
     def print_cli_help(self):
         print("Comandos disponíveis:")
-        print("  /peers: Força descoberta e lista peers conhecidos/ativos.")
+        print(
+            "  /peers [* | #namespace]: Força descoberta e lista peers conhecidos/ativos."
+        )
         print("  /conn: Mostra peers ativos e status da conexão.")
         print("  /rtt: Exibe o RTT médio por peer.")
         print("  /msg <peer_id> <mensagem>: Envia mensagem direta (SEND com ACK).")
         print("  /pub [* | #namespace] <mensagem>: Envia mensagem para todos ativos.")
+        print("  /reconnect: Força reconexão entre peers")
+        print("  /log [DEBUG | INFO | WARNING | ERROR | CRITICAL]: Ajusta nível de log")
         print("  /quit: Encerra a aplicação.")
 
     async def process_command(self, command: str):
@@ -53,7 +57,7 @@ class Cli:
                 print("Formato incorreto. Digite: /peers [* | #namespace]")
                 return
             await self.p2p_client.rdv_client.discover(command_parts[1])
-            await self.p2p_client.print_active_connecions()
+            await self.p2p_client.print_active_connecions(command_parts[1])
 
         elif cmd == "/conn":
             await self.p2p_client.print_active_connecions()
@@ -72,6 +76,21 @@ class Cli:
 
         elif cmd == "/rtt":
             await self.p2p_client.print_rtt()
+
+        elif cmd == "/log":
+            if len(command_parts) == 2:
+                root = logging.getLogger()
+                root.setLevel(command_parts[1])
+            else:
+                print(
+                    "Formato incorreto. Digite: /log [DEBUG | INFO | WARNING | ERROR | CRITICAL]"
+                )
+
+        elif cmd == "/reconnect":
+            if len(command_parts) == 1:
+                await self.p2p_client.rdv_client.reconnection()
+            else:
+                print("Formato incorreto. Digite: /reconnect")
 
         elif cmd == "/quit":
             await self.p2p_client.rdv_client.unregister()

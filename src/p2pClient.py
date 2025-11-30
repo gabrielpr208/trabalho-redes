@@ -214,7 +214,7 @@ class P2PClient:
                         await self.peer_table.remove_peer(peer_id)
         log.debug(f"PUB enviado para {dst}")
 
-    async def print_active_connecions(self):
+    async def print_active_connecions(self, namespace):
         active_peers = await self.peer_table.get_active_peers()
         print("--- Conexões ativas ---")
         if not active_peers:
@@ -225,7 +225,8 @@ class P2PClient:
             peer_info = self.peer_table.known_peers.get(peer_id, {})
             ip = peer_info.get("ip", "???")
             port = peer_info.get("port", "???")
-            print(f"{peer_id} ({ip}:{port}) | Status: ATIVO")
+            if peer_id.split("@")[1] == namespace.replace("#", "") or namespace == "*":
+                print(f"{peer_id} ({ip}:{port}) | Status: ATIVO")
         print("----------------------")
 
     async def print_rtt(self):
