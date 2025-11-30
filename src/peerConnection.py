@@ -84,6 +84,14 @@ class PeerConnection:
             await self.writer.drain()
             await self.stop()
 
+        elif cmd == "BYE_OK":
+            log.debug(f"BYE_OK recebido de {self.peer_id}.")
+
+            msg_id = message.get("msg_id")
+            fut = self.p2p_client.pending_bye_oks.get(msg_id)
+            if fut and not fut.done():
+                fut.set_result(True)
+
     async def send_ping(self):
         log.debug(f"Enviando PING para peer {self.peer_id}")
         msg_id = str(uuid.uuid4())

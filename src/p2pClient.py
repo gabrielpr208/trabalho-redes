@@ -24,6 +24,7 @@ class P2PClient:
         self.cli_task: asyncio.Task = None
         self.connection_handlers: Dict[str, PeerConnection] = {}
         self.peer_attempts: Dict[str, int] = {}
+        self.pending_bye_oks: Dict[str, asyncio.Future] = {}
 
     async def start(self):
         self.running = True
@@ -254,18 +255,32 @@ class P2PClient:
         self.rdv_client.running = False
 
         for peer_id, handler in list(self.connection_handlers.items()):
+            msg_id = str(uuid.uuid4())
             bye_msg = ProtocolEncoder.encode(
                 "BYE",
-                msg_id=str(uuid.uuid4()),
+                msg_id=msg_id,
                 src=MY_PEER_ID,
                 dst=peer_id,
                 reason="Encerrando sessão",
             )
+
+            fut = asyncio.get_running_loop().create_future()
+            self.pending_bye_oks[msg_id] = fut
+
             try:
                 handler.writer.write(bye_msg)
                 await handler.writer.drain()
+                await asyncio.wait_for(fut, timeout=5)
+
+            except asyncio.TimeoutError:
+                log.warning(
+                    f"Timeout para BYE_OK de {peer_id}. Encerrando mesmo assim..."
+                )
             except:
                 pass
+            finally:
+                self.pending_bye_oks.pop(msg_id)
+
             await handler.stop()
 
             if self.server:
