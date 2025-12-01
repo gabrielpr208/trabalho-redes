@@ -255,6 +255,9 @@ class P2PClient:
         self.rdv_client.running = False
 
         for peer_id, handler in list(self.connection_handlers.items()):
+            await handler.stop()
+
+        for peer_id, handler in list(self.connection_handlers.items()):
             msg_id = str(uuid.uuid4())
             bye_msg = ProtocolEncoder.encode(
                 "BYE",
@@ -281,8 +284,12 @@ class P2PClient:
             finally:
                 self.pending_bye_oks.pop(msg_id)
 
-            await handler.stop()
+            try:
+                handler.writer.close()
+                await handler.writer.wait_closed()
+            except:
+                pass
 
-            if self.server:
-                self.server.close()
-                await self.server.wait_closed()
+        if self.server:
+            self.server.close()
+            await self.server.wait_closed()
