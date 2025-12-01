@@ -64,7 +64,7 @@ class Cli:
             await self.p2p_client.print_peers(command_parts[1])
 
         elif cmd == "/conn":
-            self.p2p_client.print_active_connections()
+            await self.p2p_client.print_active_connections()
 
         elif cmd == "/msg":
             if len(command_parts) == 3:
