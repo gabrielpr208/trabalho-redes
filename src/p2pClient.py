@@ -219,7 +219,7 @@ class P2PClient:
                         await self.peer_table.mark_stale_peer(peer_id)
         log.debug(f"PUB enviado para {dst}")
 
-    async def print_active_connecions(self, namespace):
+    async def print_active_connections(self, namespace):
         active_peers = await self.peer_table.get_active_peers()
         print("--- Conexões ativas ---")
         if not active_peers:
