@@ -42,9 +42,15 @@ class PeerTable:
 
     async def add_active_peer(self, peer_id: str, writer: asyncio.StreamWriter):
         async with self._lock:
+            ip, port = writer.get_extra_info("peername")
+
             if peer_id not in self.known_peers:
-                ip, port = writer.get_extra_info("peername")
                 self.known_peers[peer_id] = {"ip": ip, "port": port, "status": "active"}
+            else:
+                self.known_peers[peer_id]["ip"] = ip
+                self.known_peers[peer_id]["port"] = port
+                self.known_peers[peer_id]["status"] = "active"
+
             self.active_writers[peer_id] = writer
             if peer_id not in self.rtt:
                 self.rtt[peer_id] = []
