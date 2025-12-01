@@ -61,10 +61,10 @@ class Cli:
                 print("Formato incorreto. Digite: /peers [* | #namespace]")
                 return
             await self.p2p_client.rdv_client.discover(command_parts[1])
-            await self.p2p_client.print_active_connections(command_parts[1])
+            await self.p2p_client.print_peers(command_parts[1])
 
         elif cmd == "/conn":
-            await self.p2p_client.print_active_connections("*")
+            self.p2p_client.print_active_connections()
 
         elif cmd == "/msg":
             if len(command_parts) == 3:

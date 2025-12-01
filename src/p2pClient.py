@@ -219,20 +219,43 @@ class P2PClient:
                         await self.peer_table.mark_stale_peer(peer_id)
         log.debug(f"PUB enviado para {dst}")
 
-    async def print_active_connections(self, namespace):
+    async def print_active_connections(self):
         active_peers = await self.peer_table.get_active_peers()
         print("--- Conexões ativas ---")
         if not active_peers:
-            log.debug("Não há conexões ativas no momento")
+            print("Não há conexões ativas no momento")
             return
 
         for peer_id in active_peers:
             peer_info = self.peer_table.known_peers.get(peer_id, {})
             ip = peer_info.get("ip", "???")
             port = peer_info.get("port", "???")
-            if peer_id.split("@")[1] == namespace.replace("#", "") or namespace == "*":
-                print(f"{peer_id} ({ip}:{port}) | Status: ATIVO")
+            print(f"{peer_id} ({ip}:{port}) | Status: ATIVO")
         print("----------------------")
+
+    def print_peers(self, namespace: str):
+        peers = self.peer_table.known_peers
+        print("--- Peers Conhecidos ---")
+        if not peers:
+            print("Não há peers conhecidos no momento")
+            return
+        
+        if(namespace == "*"):
+            for peer_id in peers.keys():
+                peer_ip = self.peer_table.known_peers[peer_id]['ip']
+                peer_port = self.peer_table.known_peers[peer_id]['port']
+                peer_status = self.peer_table.known_peers[peer_id]['status']
+                print(f"{peer_id} ({peer_ip}:{peer_port}) | Status: {peer_status}")
+        else:
+            namespace = namespace[1:]
+            for peer_id in peers.keys():
+                if peer_id.split('@')[-1] == namespace:
+                    peer_ip = self.peer_table.known_peers[peer_id]['ip']
+                    peer_port = self.peer_table.known_peers[peer_id]['port']
+                    peer_status = self.peer_table.known_peers[peer_id]['status']
+                    print(f"{peer_id} ({peer_ip}:{peer_port}) | Status: {peer_status}")
+
+
 
     async def print_rtt(self):
         active_peers = await self.peer_table.get_active_peers()
