@@ -51,6 +51,10 @@ class Rendezvous:
         )
         if response and response.get("status") == "OK":
             log.debug(f"Peer {MY_PEER_ID} registrado.")
+        elif response and response.get("status") == "ERROR" and response.get("message") == "bad_name":
+            log.error(f"Erro ao registrar o peer {MY_PEER_ID}: Name inválido. Name deve ter entre 1 e 64 caracteres")
+        elif response and response.get("status") == "ERROR" and response.get("message") == "bad_namespace":
+            log.error(f"Erro ao registrar o peer {MY_PEER_ID}: Namespace inválido. Namespace deve ter entre 1 e 64 caracteres")
         else:
             log.error(f"Erro ao registrar o peer {MY_PEER_ID}")
 
