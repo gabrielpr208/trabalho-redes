@@ -20,7 +20,8 @@ class P2PClient:
         self.cli = Cli(self)
         self.server: asyncio.Server = None
         self.running = True
-        self.rdv_task: asyncio.Task = None
+        self.rdv_task1: asyncio.Task = None
+        self.rdv_task2: asyncio.Task = None
         self.cli_task: asyncio.Task = None
         self.connection_handlers: Dict[str, PeerConnection] = {}
         self.peer_attempts: Dict[str, int] = {}
@@ -29,13 +30,14 @@ class P2PClient:
     async def start(self):
         self.running = True
         self.server_task = asyncio.create_task(self.start_listening_server())
-        self.rdv_task = asyncio.create_task(self.rdv_client.loop())
+        self.rdv_task1 = asyncio.create_task(self.rdv_client.discover_reconnect_loop())
+        self.rdv_task2 = asyncio.create_task(self.rdv_client.register_loop())
         self.cli_task = asyncio.create_task(self.cli.run())
 
         log.info("Iniciando conexão com Rendezvous e CLI.")
         try:
             await asyncio.gather(
-                self.server_task, self.rdv_task, self.cli_task, return_exceptions=True
+                self.server_task, self.rdv_task1, self.rdv_task2, self.cli_task, return_exceptions=True
             )
         except asyncio.CancelledError:
             log.debug("Encerrado com sucesso.")

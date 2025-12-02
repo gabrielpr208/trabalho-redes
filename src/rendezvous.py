@@ -8,6 +8,7 @@ from config import (
     MY_NAMESPACE,
     MY_LISTEN_PORT,
     DISCOVERY_INTERVAL,
+    REGISTER_TTL
 )
 from protocolEncoder import ProtocolEncoder
 import logging
@@ -46,7 +47,7 @@ class Rendezvous:
 
     async def register(self):
         response = await self.send_command(
-            "REGISTER", namespace=MY_NAMESPACE, name=MY_NAME, port=MY_LISTEN_PORT
+            "REGISTER", namespace=MY_NAMESPACE, name=MY_NAME, port=MY_LISTEN_PORT, ttl=REGISTER_TTL
         )
         if response and response.get("status") == "OK":
             log.debug(f"Peer {MY_PEER_ID} registrado.")
@@ -85,8 +86,7 @@ class Rendezvous:
                     self.p2p_client.connect_to_peer(peer["ip"], peer["port"])
                 )
 
-    async def loop(self):
-        await self.register()
+    async def discover_reconnect_loop(self):
         while self.running:
             try:
                 await self.discover("*")
@@ -94,3 +94,11 @@ class Rendezvous:
                 await asyncio.sleep(DISCOVERY_INTERVAL)
             except:
                 await asyncio.sleep(DISCOVERY_INTERVAL)
+
+    async def register_loop(self):
+        while self.running:
+            try:
+                await self.register()
+                await asyncio.sleep(REGISTER_TTL)
+            except:
+                await asyncio.sleep(REGISTER_TTL)
