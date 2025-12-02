@@ -1,5 +1,7 @@
 import asyncio
 import sys
+import os
+import termios
 import uuid
 from typing import Tuple, Dict
 from peerConnection import PeerConnection
@@ -9,6 +11,7 @@ from protocolEncoder import ProtocolEncoder
 from rendezvous import Rendezvous
 from cli import Cli
 import logging
+from prompt_toolkit.application.current import get_app
 
 log = logging.getLogger("p2p client")
 
@@ -310,3 +313,13 @@ class P2PClient:
         if self.server:
             self.server.close()
             await self.server.wait_closed()
+
+    def error_quit(self):
+        app = get_app()
+        if app.is_running:
+            app.exit()
+        os.system('stty sane')
+        message = b"\r\nEncerrando imediatamente: name ou namespace invalido(s).\n"
+        os.write(1, message)
+        termios.tcflush(sys.stdin, termios.TCIFLUSH)
+        os._exit(1)
