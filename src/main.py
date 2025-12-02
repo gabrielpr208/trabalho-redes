@@ -28,13 +28,23 @@ parser.add_argument(
     help="Logging level (default: INFO)",
 )
 
-
 def valid_port(value):
     port = int(value)
     if 1 <= port <= 65535:
         return port
     raise argparse.ArgumentTypeError(f"{value} is not a valid port number (1-65535) ")
 
+def valid_name(name: str):
+    length = len(name)
+    if length > 64 or length < 1:
+        raise argparse.ArgumentTypeError(f"{name} is not a valid name. Name should have between 1 and 64 characters")
+    return name
+
+def valid_namespace(namespace: str):
+    length = len(namespace)
+    if length > 64 or length < 1:
+        raise argparse.ArgumentTypeError(f"{namespace} is not a valid name. Namespace should have between 1 and 64 characters")
+    return namespace
 
 parser.add_argument(
     "--port",
@@ -45,14 +55,14 @@ parser.add_argument(
 
 parser.add_argument(
     "--name",
-    type=str,
+    type=valid_name,
     default=None,
     help="Peer name",
 )
 
 parser.add_argument(
     "--namespace",
-    type=str,
+    type=valid_namespace,
     default=None,
     help="Peer's namespace",
 )
